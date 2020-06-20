@@ -1,0 +1,28 @@
+InputMidiName: "nanoKONTROL2 MIDI 1"
+OutputMidiName: "nanoKONTROL2 MIDI 1"
+
+MidiActions:
+- ActionType: 'ControlChange'
+  Channel: 0
+  Controller: 0
+  MaxInputValue: 105
+  Action:
+    TargetType: 'PlaybackStream'
+    TargetName: 'Spotify'
+    ActionType: 'VolumeChange'
+- ActionType: 'ControlChange'
+  Channel: 0
+  Controller: 3
+  MaxInputValue: 105
+  Action:
+    TargetType: 'PlaybackStream'
+    TargetName: 'Firefox'
+    ActionType: 'VolumeChange'
+- ActionType: 'ControlChange'
+  Channel: 0
+  Controller: 7
+  MaxInputValue: 105
+  Action:
+    TargetType: 'Sink'
+    TargetName: 'Audioengine D1    Analog Stereo'
+    ActionType: 'VolumeChange'
