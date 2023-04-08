@@ -20,3 +20,13 @@ You can checkout the [example configuration file](https://github.com/solarnz/pam
 You must set a bare-minimum the Input and Output midi device names.
 
 pamidicontrol will print to stderr all of the midi control messages it gets, so you can easily build up your configuration file iteratively.
+
+# Troubleshooting
+
+## panic: runtime error: invalid memory address or nil pointer dereference on startup
+
+Make sure that the names you have configured for `InputMidiName` / `OutputMidiName` actually exist.
+
+## /usr/run/XXX/pulse/dbox-socket not found
+
+On some distributions, PulseAudio is configured without D-Bus control by default. To enable D-Bus control for PulseAudio, add `load-module module-dbus-protocol` to your PulseAudio configuration file located at `/etc/pulse/default.pa`.
