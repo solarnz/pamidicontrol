@@ -2,6 +2,7 @@ package portmididrv
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/rakyll/portmidi"
 	"gitlab.com/gomidi/midi"
@@ -16,16 +17,21 @@ type out struct {
 	stream *portmidi.Stream
 	name   string
 	driver *driver
+	sync.RWMutex
 }
 
 // IsOpen returns, wether the port is open
 func (o *out) IsOpen() bool {
+	o.RLock()
+	defer o.RUnlock()
 	return o.stream != nil
 }
 
 // Write writes a MIDI message to the outut port
 // If the output port is closed, it returns midi.ErrPortClosed
 func (o *out) Write(b []byte) (int, error) {
+	o.Lock()
+	defer o.Unlock()
 	if o.stream == nil {
 		return 0, midi.ErrPortClosed
 	}
@@ -68,6 +74,8 @@ func (o *out) String() string {
 
 // Close closes the MIDI out port
 func (o *out) Close() error {
+	o.Lock()
+	defer o.Unlock()
 	if o.stream == nil {
 		return nil
 	}
@@ -82,14 +90,19 @@ func (o *out) Close() error {
 
 // Open opens the MIDI output port
 func (o *out) Open() (err error) {
+	o.Lock()
+	defer o.Unlock()
 	if o.stream != nil {
 		return nil
 	}
+
 	o.stream, err = portmidi.NewOutputStream(o.id, o.driver.buffersizeOut, 0)
 	if err != nil {
 		o.stream = nil
 		return fmt.Errorf("can't open MIDI out port %v (%s): %v", o.Number(), o, err)
 	}
+	o.driver.Lock()
 	o.driver.opened = append(o.driver.opened, o)
+	o.driver.Unlock()
 	return nil
 }
