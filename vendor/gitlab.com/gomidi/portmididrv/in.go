@@ -2,6 +2,7 @@ package portmididrv
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 
@@ -21,12 +22,14 @@ type in struct {
 	driver *driver
 
 	lastTimestamp portmidi.Timestamp
-	mx            sync.Mutex
+	mx            sync.RWMutex
 	stopped       bool
 }
 
 // IsOpen returns wether the MIDI in port is open.
 func (i *in) IsOpen() bool {
+	i.mx.RLock()
+	defer i.mx.RUnlock()
 	return i.stream != nil
 }
 
@@ -51,16 +54,15 @@ func (i *in) String() string {
 
 // Close closes the MIDI in port
 func (i *in) Close() error {
+	i.mx.Lock()
+	defer i.mx.Unlock()
 	if i.stream == nil {
 		return nil
 	}
 
-	err := i.StopListening()
-	if err != nil {
-		panic("unreachable")
-	}
+	i.stopped = true
 
-	err = i.stream.Close()
+	err := i.stream.Close()
 	if err != nil {
 		return fmt.Errorf("can't close MIDI in %v (%s): %v", i.Number(), i, err)
 	}
@@ -70,6 +72,8 @@ func (i *in) Close() error {
 
 // Open opens the MIDI in port
 func (i *in) Open() (err error) {
+	i.mx.Lock()
+	defer i.mx.Unlock()
 	if i.stream != nil {
 		return nil
 	}
@@ -78,7 +82,9 @@ func (i *in) Open() (err error) {
 		i.stream = nil
 		return fmt.Errorf("can't open MIDI in port %v (%s): %v", i.Number(), i, err)
 	}
+	i.driver.Lock()
 	i.driver.opened = append(i.driver.opened, i)
+	i.driver.Unlock()
 	return nil
 }
 
@@ -95,10 +101,17 @@ func (i *in) read(cb func([]byte, int64)) error {
 	events, err := i.stream.Read(i.driver.buffersizeRead)
 
 	if err != nil {
-		return err
+		bt, err2 := i.stream.ReadSysExBytes(i.driver.buffersizeRead)
+		if err2 != nil {
+			return err
+		}
+
+		cb(bt, int64(i.lastTimestamp)*1000)
+		return nil
 	}
 
 	for _, ev := range events {
+
 		var b = make([]byte, 3)
 		b[0] = byte(ev.Status)
 		b[1] = byte(ev.Data1)
@@ -113,13 +126,24 @@ func (i *in) read(cb func([]byte, int64)) error {
 
 // SetListener sets the listener
 func (i *in) SetListener(listener func(data []byte, deltaMicroseconds int64)) error {
-	i.lastTimestamp = portmidi.Time()
-	for i.stopped == false {
-		has, _ := i.stream.Poll()
-		if has {
-			i.read(listener)
+	go func() {
+		i.lastTimestamp = portmidi.Time()
+		for {
+			i.mx.Lock()
+			stopped := i.stopped
+
+			if stopped {
+				i.mx.Unlock()
+				return
+			}
+			has, _ := i.stream.Poll()
+			if has {
+				i.read(listener)
+			}
+			i.mx.Unlock()
+			time.Sleep(i.driver.sleepingTime)
+			runtime.Gosched()
 		}
-		time.Sleep(i.driver.sleepingTime)
-	}
+	}()
 	return nil
 }

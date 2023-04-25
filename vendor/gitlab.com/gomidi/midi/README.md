@@ -29,19 +29,33 @@ This package provides a unified way to read and write "over the wire" MIDI data 
 ## Drivers
 
 For "cable" communication you need a `Driver`to connect with the MIDI system of your OS.
-Currently there are two multi-platform drivers available:
-- package `gitlab.com/gomidi/rtmididrv` based on rtmidi
-- package `gitlab.com/gomidi/portmididrv` based on portmidi
+Currently the following drivers available  (all multi-platform):
+- package `gitlab.com/gomidi/rtmididrv` based on rtmidi (requires CGO)
+- package `gitlab.com/gomidi/portmididrv` based on portmidi (requires CGO)
+- package `gitlab.com/gomidi/webmididrv` based on the Web MIDI standard (produces webassembly)
+- package `gitlab.com/gomidi/midicatdrv` based on the midicat binaries via piping (stdin / stdout) (no CGO needed)
+- package `gitlab.com/gomidi/midi/testdrv` for testing (no CGO needed)
+
+## Projects using this library
+
+- [miti](https://pkg.go.dev/github.com/schollz/miti)
+- [launchpad](https://pkg.go.dev/github.com/rainu/launchpad)
+- [pamidicontrol](https://pkg.go.dev/github.com/solarnz/pamidicontrol)
+- [bleep](https://pkg.go.dev/github.com/bspaans/bleep)
+- [midi-macro](https://pkg.go.dev/github.com/vipul-sharma20/midi-macro)
+- [hyperarp](https://pkg.go.dev/gitlab.com/gomidi/hyperarp)
+- [golinnstrument](https://pkg.go.dev/gitlab.com/golinnstrument/linnstrument)
+- [smfimage](https://pkg.go.dev/gitlab.com/gomidi/smfimage)
+- [midispy](https://pkg.go.dev/gitlab.com/gomidi/midispy)
 
 ## Porcelain package
 
-For easy access, the packages `gitlab.com/gomidi/midi/reader` and `gitlab.com/gomidi/midi/writer` are recommended.
+For easy access, the following packages are recommended:
+
+- reading: `gitlab.com/gomidi/midi/reader` [![Go Reference](https://pkg.go.dev/badge/gitlab.com/gomidi/midi/reader.svg)](https://pkg.go.dev/gitlab.com/gomidi/midi/reader)
+- writing: `gitlab.com/gomidi/midi/writer`  [![Go Reference](https://pkg.go.dev/badge/gitlab.com/gomidi/midi/writer.svg)](https://pkg.go.dev/gitlab.com/gomidi/midi/writer)
 
 The other packages are more low level and allow you to write your own implementations of the `midi.Reader`, `midi.Writer`and `midi.Driver` interfaces to wrap the given SMF and live readers/writers/drivers for your own application.
-
-[Documentation reader package](https://pkg.go.dev/gitlab.com/gomidi/midi/reader)
-[Documentation writer package](https://pkg.go.dev/gitlab.com/gomidi/midi/writer)
-
 
 ### Example with MIDI cables
 
@@ -55,7 +69,7 @@ import (
 	"gitlab.com/gomidi/midi"
 	"gitlab.com/gomidi/midi/reader"
 
-	// replace with e.g. "gitlab.com/gomidi/midi/rtmididrv" for real midi connections
+	// replace with e.g. "gitlab.com/gomidi/rtmididrv" for real midi connections
 	driver "gitlab.com/gomidi/midi/testdrv"
 	"gitlab.com/gomidi/midi/writer"
 )
@@ -199,7 +213,7 @@ func main() {
 
 ## Low level packages
 
-[Documentation main package](https://pkg.go.dev/gitlab.com/gomidi/midi)
+[![Go Reference](https://pkg.go.dev/badge/gitlab.com/gomidi/midi.svg)](https://pkg.go.dev/gitlab.com/gomidi/midi)
 
 
 ### Example with low level packages
@@ -281,6 +295,29 @@ This keeps packages and dependencies small, better testable and should result in
 For reading and writing of cable and SMF MIDI data `io.Readers` are accepted as input and `io.Writers` as output. Furthermore there are common interfaces for live and SMF MIDI data handling: `midi.Reader` and `midi.Writer`. The typed MIDI messages used in each case are the same.
 
 To connect with MIDI libraries expecting and returning plain bytes, use the `midiio` subpackage.
+
+## Stability / API / Semantic Versioning
+
+[This excellent blog post by Peter Bourgon](https://peter.bourgon.org/blog/2020/09/14/siv-is-unsound.html) describes
+perfectly the problem, I have with `Go modules`' take on `semantic versioning`.
+
+First of all, the API of this library is large (if you use all of it, which is unlikely) and generally
+stable. There may be small incompatibilities from time to time that will only affect a small amount of users and
+that will "blow up into your face"  when compiling. These are easy to fix with the help of the compiler
+and the documentation. 
+
+The `diamond dependency problem` should be unlikely with this library, since that would mean, 
+you are using a library that is abstracting over MIDI and uses this library in order to do so. 
+Well, then you should reconsider the use of that library, since there really is no point in further abstractions. 
+For other uses however (e.g. integration),  the interfaces should be used and they won't change. 
+
+As a last resort, you could fork that other library, add a replace statement to your `go.mod`
+and fix the issue, followed by a pull request. If that libary requiring the old code is not maintained anymore, 
+you would need to fork anyway in the future. If it is maintained, your pull request should get accepted.
+
+**We are not going to bump the major version with every tiny incompatible change of this code base.
+The costs are too high and the benefits too low. Instead, any `minor` version upgrade reflects incompatible changes and
+the `patch`versions contain compatible changes (i.e. also compatible additions). A large rewrite will however end up in a major version bump.**
 
 ## License
 

@@ -2,6 +2,7 @@ package portmididrv
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/rakyll/portmidi"
@@ -14,6 +15,7 @@ type driver struct {
 	buffersizeOut  int64
 	sleepingTime   time.Duration
 	opened         []midi.Port
+	sync.RWMutex
 }
 
 func (d *driver) String() string {
@@ -22,9 +24,12 @@ func (d *driver) String() string {
 
 // Close closes all open ports. It must be called at the end of a session.
 func (d *driver) Close() (err error) {
+	d.Lock()
+	defer d.Unlock()
 	for _, p := range d.opened {
 		err = p.Close()
 	}
+	d.opened = nil
 	// return just the last error to allow closing the other ports.
 	// to ensure that all ports have been closed, this function must
 	// return nil anyways
@@ -45,7 +50,9 @@ func New(options ...Option) (midi.Driver, error) {
 
 	// sleepingTime of 0.1ms should be fine to prevent busy waiting
 	// and still fast enough for performances
-	dr.sleepingTime = time.Nanosecond * 1000 * 100
+	//dr.sleepingTime = time.Nanosecond * 1000 * 100
+	//dr.sleepingTime = time.Nanosecond * 1000 * 500
+	dr.sleepingTime = time.Microsecond * 500
 
 	for _, opt := range options {
 		opt(dr)
@@ -56,6 +63,8 @@ func New(options ...Option) (midi.Driver, error) {
 
 // Ins returns the available MIDI in ports
 func (d *driver) Ins() (ins []midi.In, err error) {
+	d.Lock()
+	defer d.Unlock()
 	for i := 0; i < portmidi.CountDevices(); i++ {
 		info := portmidi.Info(portmidi.DeviceID(i))
 		if info != nil && info.IsInputAvailable {
@@ -67,6 +76,8 @@ func (d *driver) Ins() (ins []midi.In, err error) {
 
 // Outs returns the available MIDI out ports
 func (d *driver) Outs() (outs []midi.Out, err error) {
+	d.Lock()
+	defer d.Unlock()
 	for i := 0; i < portmidi.CountDevices(); i++ {
 		info := portmidi.Info(portmidi.DeviceID(i))
 		if info != nil && info.IsOutputAvailable {
