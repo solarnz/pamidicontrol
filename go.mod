@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/godbus/dbus v4.1.0+incompatible
+	github.com/rakyll/portmidi v0.0.0-20201020180702-d436ceaa537a // indirect
 	github.com/rs/zerolog v1.19.0
 	github.com/spf13/viper v1.7.0
 	github.com/sqp/pulseaudio v0.0.0-20180916175200-29ac6bfa231c
